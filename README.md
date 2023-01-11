@@ -72,7 +72,16 @@ Scan Types:
 
 
 ## TO-DO List
-- [ ] Add More Tools
 - [ ] Script to Verify and Download Tools
-
+- [ ] Pemding Recon Tools
+	- [ ] ActiveMQ
+	- [ ] Jolokia
+	- [ ] RMI
+	- [ ] RPC Mapper
+	- [ ] Kubernetes
+	- [ ] NTP
+	- [ ] NFS
+	- [ ] Apache Jserv
+- [ ] Create a Set of Common Endpoints to Detect Web Services
+- [ ] Update LDAPSearch with extra commands to make it work with all versions
 
