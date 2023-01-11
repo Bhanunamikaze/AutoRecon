@@ -73,7 +73,7 @@ Scan Types:
 
 ## TO-DO List
 - [ ] Script to Verify and Download Tools
-- [ ] Pemding Recon Tools
+- [ ] Pending Recon Tools
 	- [ ] ActiveMQ
 	- [ ] Jolokia
 	- [ ] RMI
