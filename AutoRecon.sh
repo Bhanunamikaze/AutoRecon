@@ -1,5 +1,4 @@
 #!/bin/sh
-#by @21y4d
 
 # Define ANSI color variables
 RED='\033[0;31m'
@@ -618,12 +617,47 @@ reconRecommend() {
 
                 # HTTP recon
                 for line in ${file}; do
+                         if echo "${line}" | grep -i -q upnp; then
+                                port="$(echo "${line}" | cut -d "/" -f 1)"
+                                if echo "${line}" | grep -q ssl/upnp; then
+                                        urlType='https://'
+                                        echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
+                                else
+                                        urlType='http://'
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
+
+                                fi
+                                echo
+                        fi
+
+
+                       if echo "${line}" | grep -i -q octopustentacle; then
+                                port="$(echo "${line}" | cut -d "/" -f 1)"
+                                if echo "${line}" | grep -q ssl/octopustentacle; then
+                                        urlType='https://'
+                                        echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+                                else
+                                        urlType='http://'
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+
+                                fi
+                                echo
+                        fi
+
+                for line in ${file}; do
                         if echo "${line}" | grep -i -q http; then
                                 port="$(echo "${line}" | cut -d "/" -f 1)"
                                 if echo "${line}" | grep -q ssl/http; then
                                         urlType='https://'
                                         echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
                                         echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
                                 else
                                         urlType='http://'
                                         echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
@@ -631,9 +665,11 @@ reconRecommend() {
                                 if type ffuf >/dev/null 2>&1; then
                                         extensions="$(echo 'index' >./index && ffuf -s -w ./index:FUZZ -mc '200,302' -e '.asp,.aspx,.html,.jsp,.php' -u "${urlType}${HOST}:${port}/FUZZ" 2>/dev/null | awk -vORS=, -F 'index' '{print $2}' | sed 's/.$//' && rm ./index)"
                                         echo "ffuf -ic -w /usr/share/wordlists/dirb/common.txt -e '${extensions}' -u \"${urlType}${HOST}:${port}/FUZZ\" | tee \"recon/ffuf_${HOST}_${port}.txt\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
                                 else
                                         extensions="$(echo 'index' >./index && gobuster dir -w ./index -t 30 -qnkx '.asp,.aspx,.html,.jsp,.php' -s '200,302' -u "${urlType}${HOST}:${port}" 2>/dev/null | awk -vORS=, -F 'index' '{print $2}' | sed 's/.$//' && rm ./index)"
                                         echo "gobuster dir -w /usr/share/wordlists/dirb/common.txt -t 30 -ekx '${extensions}' -u \"${urlType}${HOST}:${port}\" -o \"recon/gobuster_${HOST}_${port}.txt\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
                                 fi
                                 echo
                         fi
