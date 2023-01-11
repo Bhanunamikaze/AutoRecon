@@ -63,6 +63,8 @@ Scan Types:
 - Ldapsearch
 - SMBmap
 - SMBClient
+- SNMP-Check
+- SNMPWalk
 - enum4linux
 - odat
 
