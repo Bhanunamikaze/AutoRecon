@@ -50,5 +50,24 @@ Scan Types:
 ./nmapAutomator.sh -H academy.htb -t Recon -d 1.1.1.1
 ./nmapAutomator.sh -H 10.10.10.10 -t network -s ./nmap
 ```
+## Recon Toools
+- Nikto
+- Dirsearch
+- ffuf
+- Gobuster 
+- Testssl.sh
+- SSLScan
+- Joomscan
+- WPscan
+- Droopescan
+- Ldapsearch
+- SMBmap
+- SMBClient
+- enum4linux
+- odat
+
+
+
+
 
 
