@@ -63,6 +63,7 @@ Scan Types:
 - Ldapsearch
 - SMBmap
 - SMBClient
+- [SMBScan.sh](https://github.com/Bhanunamikaze/VulnFinder/blob/main/SMBPentest.sh)
 - SNMP-Check
 - SNMPWalk
 - enum4linux
