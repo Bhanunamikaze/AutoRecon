@@ -738,6 +738,14 @@ reconRecommend() {
                 echo "enum4linux -a \"${HOST}\" | tee \"recon/enum4linux_${HOST}.txt\""
                 echo
         fi
+        
+         # SMB Test Cases
+        if echo "${file}" | grep -q "445/tcp"; then
+                printf "${NC}\n"
+                printf "${YELLOW} Running SMB Test Cases:\n"
+                printf "${NC}\n"
+                echo "smbscan.sh \"${HOST}\" | tee \"recon/SMB_testcases_${HOST}.txt\""
+        fi
 
         # Oracle DB recon
         if echo "${file}" | grep -q "1521/tcp"; then
