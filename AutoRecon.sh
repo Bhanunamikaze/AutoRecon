@@ -615,41 +615,7 @@ reconRecommend() {
                 printf "${YELLOW}Web Servers Recon:\n"
                 printf "${NC}\n"
 
-                # HTTP recon
-                for line in ${file}; do
-                         if echo "${line}" | grep -i -q upnp; then
-                                port="$(echo "${line}" | cut -d "/" -f 1)"
-                                if echo "${line}" | grep -q ssl/upnp; then
-                                        urlType='https://'
-                                        echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
-                                        echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
-                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
-                                else
-                                        urlType='http://'
-                                        echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
-
-                                fi
-                                echo
-                        fi
-
-
-                       if echo "${line}" | grep -i -q octopustentacle; then
-                                port="$(echo "${line}" | cut -d "/" -f 1)"
-                                if echo "${line}" | grep -q ssl/octopustentacle; then
-                                        urlType='https://'
-                                        echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
-                                        echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
-                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
-                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
-                                else
-                                        urlType='http://'
-                                        echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
-                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
-
-                                fi
-                                echo
-                        fi
-
+                #HTTP Recon
                 for line in ${file}; do
                         if echo "${line}" | grep -i -q http; then
                                 port="$(echo "${line}" | cut -d "/" -f 1)"
@@ -673,7 +639,43 @@ reconRecommend() {
                                 fi
                                 echo
                         fi
+                        
+                         # upnp recon
+                         if echo "${line}" | grep -i -q upnp; then
+                                port="$(echo "${line}" | cut -d "/" -f 1)"
+                                if echo "${line}" | grep -q ssl/upnp; then
+                                        urlType='https://'
+                                        echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
+                                else
+                                        urlType='http://'
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
+
+                                fi
+                                echo
+                        fi
+
+                       # octopustentacle Recon       
+                       if echo "${line}" | grep -i -q octopustentacle; then
+                                port="$(echo "${line}" | cut -d "/" -f 1)"
+                                if echo "${line}" | grep -q ssl/octopustentacle; then
+                                        urlType='https://'
+                                        echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+                                else
+                                        urlType='http://'
+                                        echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+
+                                fi
+                                echo
+                fi
+                        
                 done
+                
                 # CMS recon
                 if [ -f "nmap/Script_${HOST}.nmap" ]; then
                         cms="$(grep http-generator "nmap/Script_${HOST}.nmap" | cut -d " " -f 2)"
@@ -745,6 +747,7 @@ reconRecommend() {
                 printf "${YELLOW} Running SMB Test Cases:\n"
                 printf "${NC}\n"
                 echo "smbscan.sh \"${HOST}\" | tee \"recon/SMB_testcases_${HOST}.txt\""
+                echo
         fi
 
         # Oracle DB recon
