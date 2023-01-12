@@ -61,6 +61,7 @@ Scan Types:
 - WPscan
 - Droopescan
 - Ldapsearch
+- ldeep
 - SMBmap
 - SMBClient
 - [SMBScan.sh](https://github.com/Bhanunamikaze/VulnFinder/blob/main/SMBPentest.sh)
@@ -68,16 +69,19 @@ Scan Types:
 - SNMPWalk
 - enum4linux
 - odat
-
+- tnscmd10g 
+- cottontail
+- rpcdump.py
+- rpcmap.py
 
 
 ## TO-DO List
 - [ ] Script to Verify and Download Tools
 - [ ] Pending Recon Tools
-	- [ ] ActiveMQ
+	- [x] ActiveMQ
 	- [ ] Jolokia
 	- [ ] RMI
-	- [ ] RPC Mapper
+	- [x] RPC Mapper
 	- [ ] Kubernetes
 	- [ ] NTP
 	- [ ] NFS
