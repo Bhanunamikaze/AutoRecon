@@ -1,6 +1,6 @@
 # AutoRecon
 
-A script you can run in the background!
+Automate Nmap Scanning and Recon Activities for Common Ports & Services
   
 ## Summary
 
