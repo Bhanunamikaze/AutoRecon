@@ -714,9 +714,13 @@ reconRecommend() {
                 printf "${NC}\n"
                 printf "${YELLOW}ldap Recon:\n"
                 printf "${NC}\n"
-                echo "ldapsearch -x -h \"${HOST}\" -s base | tee \"recon/ldapsearch_${HOST}.txt\""
+                echo "ldapsearch -H ldap://${HOST} -x -s base namingcontexts | tee \"recon/ldapsearch_${HOST}.txt\""
+                echo "ldapsearch -x -h \"${HOST}\" -s base | tee -a \"recon/ldapsearch_${HOST}.txt\""
+                echo "ldapsearch -LLL -x -H ldap://${HOST} -b '' -s base '(objectclass=*)'| tee -a \"recon/ldapsearch_${HOST}.txt\""
                 echo "ldapsearch -x -h \"${HOST}\" -b \"\$(grep rootDomainNamingContext \"recon/ldapsearch_${HOST}.txt\" | cut -d ' ' -f2)\" | tee \"recon/ldapsearch_DC_${HOST}.txt\""
+                echo "ldapsearch -x -H ldap://${HOST} -b \"\$(grep rootDomainNamingContext \"recon/ldapsearch_${HOST}.txt\" | cut -d ' ' -f2)\" | tee -a \"recon/ldapsearch_DC_${HOST}.txt\""
                 echo "nmap -Pn -p 389 --script ldap-search --script-args 'ldap.username=\"\$(grep rootDomainNamingContext \"recon/ldapsearch_${HOST}.txt\" | cut -d \\" \\" -f2)\"' \"${HOST}\" -oN \"recon/nmap_ldap_${HOST}.txt\""
+                echo "ldeep ldap -a -s ldap://${HOST} all dump | tee \"recon/ldeep_${HOST}.txt\""
                 echo
         fi
 
@@ -758,24 +762,40 @@ reconRecommend() {
                         printf "${YELLOW} AMQP/ActiveMQ Recon:\n"
                         printf "${NC}\n"
                         echo "nmap -sV -Pn --script amqp-info -p \"${port}\" \"${HOST}\" -oN \"recon/AMPQ_nmap_${HOST}_${port}.txt\""
-                        echo "**** Starting Recon ****  | tee \"recon/AMQP_Recon_${HOST}_${port}.txt\""
-                        echo "[*] Testing Default Creds: admin/admin  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""                
+                        #echo "echo \"**** Starting Recon ****  | tee \"recon/AMQP_Recon_${HOST}_${port}.txt\"\n\""
+                        #echo "echo \"[*] Testing Default Creds: admin/admin  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""\"                
                         echo "curl -u admin:admin -d \"body=message\" \"http://${HOST}:${port}/api/message/TEST?type=queue\"  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""
-                        echo "[*] Query the server  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""   
+                        #echo "echo \"[*] Query the server  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""\"    
                         echo "curl -d body=\"Hello World\" \"http://${HOST}:${port}/demo/message/test?type=queue&clientId=consumerA\"  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\"" 
-                        echo "[*] Running Cottontail  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""
+                        #echo "echo \"[*] Running Cottontail  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\" "\"   
                         echo "cottontail --username guest --password guest -v http://${HOST}:${port} | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""   
                         echo 
                 fi
+         done 
+
+        # RPC Mapper Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "135/tcp\|593/tcp"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW} RPC Mapper Recon:\n"
+                        printf "${NC}\n"         
+                        echo "rpcdump.py \"${HOST}\" -p ${port} | tee -a \"recon/rpcdump_${HOST}_${port}.txt\""
+                        echo "rpcmap.py 'ncacn_ip_tcp:${HOST}'  | tee -a \"recon/rpcmap_Recon_${HOST}_${port}.txt\"" 
+                        echo 
+                fi
          done
-         
+
         # Oracle DB recon
         if echo "${file}" | grep -q "1521/tcp"; then
                 printf "${NC}\n"
                 printf "${YELLOW}Oracle Recon:\n"
                 printf "${NC}\n"
-                echo "odat sidguesser -s \"${HOST}\" -p 1521"
-                echo "odat passwordguesser -s \"${HOST}\" -p 1521 -d XE --accounts-file accounts/accounts-multiple.txt"
+                echo "odat all -s \"${HOST}\" | tee -a \"recon/OracleDB_recon${HOST}.txt\""
+                echo "odat sidguesser -s \"${HOST}\" -p 1521 | tee -a \"recon/OracleDB_recon${HOST}.txt\""
+                echo "odat passwordguesser -s \"${HOST}\" -p 1521 -d XE --accounts-file accounts/accounts-multiple.txt | tee -a \"recon/OracleDB_recon${HOST}.txt\""
+                echo "tnscmd10g version -h \"${HOST}\" | tee -a \"recon/OracleDB_recon${HOST}.txt\""
+                echo "tnscmd10g status  -h \"${HOST}\" | tee -a \"recon/OracleDB_recon${HOST}.txt\""
                 echo
         fi
 
