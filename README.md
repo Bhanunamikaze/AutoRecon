@@ -79,6 +79,7 @@ Scan Types:
 - [ ] Script to Verify and Download Tools
 - [ ] Pending Recon Tools
 	- [x] ActiveMQ
+	- [ ] Nuclei
 	- [ ] Jolokia
 	- [ ] RMI
 	- [x] RPC Mapper
