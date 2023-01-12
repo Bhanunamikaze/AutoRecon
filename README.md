@@ -87,5 +87,5 @@ Scan Types:
 	- [ ] NFS
 	- [ ] Apache Jserv
 - [ ] Create a Set of Common Endpoints to Detect Web Services
-- [ ] Update LDAPSearch with extra commands to make it work with all versions
+- [x] Update LDAPSearch with extra commands to make it work with all versions
 
