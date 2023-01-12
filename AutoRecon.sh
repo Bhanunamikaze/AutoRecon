@@ -755,16 +755,16 @@ reconRecommend() {
                 if echo "${line}" | grep -q "5671/tcp\|5672/tcp\|ActiveMQ\|AMQP\|32064/tcp\|32357/tcp\|61616l/tcp"; then
                         port="$(echo "${line}" | cut -d "/" -f 1)"
                         printf "${NC}\n"
-                        printf "${YELLOW} AMPQ/ActiveMQ Recon:\n"
+                        printf "${YELLOW} AMQP/ActiveMQ Recon:\n"
                         printf "${NC}\n"
                         echo "nmap -sV -Pn --script amqp-info -p \"${port}\" \"${HOST}\" -oN \"recon/AMPQ_nmap_${HOST}_${port}.txt\""
-                        echo "**** Starting Recon ****  | tee \"recon/AMPQ_Recon_${HOST}_${port}.txt\""
-                        echo "[*] Testing Default Creds: admin/admin  | tee -a \"recon/AMPQ_Recon_${HOST}_${port}.txt\""                
-                        echo "curl -u admin:admin -d \"body=message\" \"http://{HOST}:{port}/api/message/TEST?type=queue\"  | tee -a \"recon/AMPQ_Recon_${HOST}_${port}.txt\""
-                        echo "[*] Query the server  | tee -a \"recon/AMPQ_Recon_${HOST}_${port}.txt\""   
-                        echo "curl -d body=\"Hello World\" \"http://${HOST}:{port}/demo/message/test?type=queue&clientId=consumerA\"  | tee -a \"recon/AMPQ_Recon_${HOST}_${port}.txt\"" 
-                        echo "[*] Running Cottontail  | tee -a \"recon/AMPQ_Recon_${HOST}_${port}.txt\""
-                        echo "cottontail --username guest --password guest -v http://{HOST}:{port} | tee -a \"recon/AMPQ_Recon_${HOST}_${port}.txt\""   
+                        echo "**** Starting Recon ****  | tee \"recon/AMQP_Recon_${HOST}_${port}.txt\""
+                        echo "[*] Testing Default Creds: admin/admin  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""                
+                        echo "curl -u admin:admin -d \"body=message\" \"http://${HOST}:${port}/api/message/TEST?type=queue\"  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""
+                        echo "[*] Query the server  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""   
+                        echo "curl -d body=\"Hello World\" \"http://${HOST}:${port}/demo/message/test?type=queue&clientId=consumerA\"  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\"" 
+                        echo "[*] Running Cottontail  | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""
+                        echo "cottontail --username guest --password guest -v http://${HOST}:${port} | tee -a \"recon/AMQP_Recon_${HOST}_${port}.txt\""   
                         echo 
                 fi
          done
