@@ -50,42 +50,36 @@ Scan Types:
 ./AutoRecon.sh -H academy.htb -t Recon -d 1.1.1.1
 ./AutoRecon.sh -H 10.10.10.10 -t network -s ./nmap
 ```
-## Recon Toools
-- Nikto
-- Dirsearch
-- ffuf
-- Gobuster 
-- Testssl.sh
-- SSLScan
-- Joomscan
-- WPscan
-- Droopescan
-- Ldapsearch
-- ldeep
-- SMBmap
-- SMBClient
-- [SMBScan.sh](https://github.com/Bhanunamikaze/VulnFinder/blob/main/SMBPentest.sh)
-- SNMP-Check
-- SNMPWalk
-- enum4linux
-- odat
-- tnscmd10g 
-- cottontail
-- rpcdump.py
-- rpcmap.py
 
+## Auto Recon Services List 
+- HTTP/SSL 
+- CMS (Wordpress, Joomla, Drupal)
+- LDAP
+- ORACLE DB
+- SNMP
+- SMTP
+- NTP 
+- NFS
+- RPC/RPC MAPPER
+- SMB
+- JAVA RMI SERVICES
+- KUBERNETES
+- ACTIVEMQ
+
+## Recon Toools Used
+ dirsearch gobuster nikto testssl.sh ffuf sslscan joomscan wpscan python python3-pip python3 ldap-utils git smbmap smbclient snmpwalk enum4linux onesixtyone snmp odat tnscmd10g default-jre nuclei droopescan cottontail ldeep Kube Hunter etcdctl BeanShooter BaRMIe Remote-method-guesser [SMBScan.sh](https://github.com/Bhanunamikaze/VulnFinder/blob/main/SMBPentest.sh)
 
 ## TO-DO List
-- [ ] Script to Verify and Download Tools
+- [x] Script to Verify and Download Tools
 - [ ] Pending Recon Tools
 	- [x] ActiveMQ
 	- [ ] Nuclei
 	- [ ] Jolokia
-	- [ ] RMI
+	- [x] RMI
 	- [x] RPC Mapper
-	- [ ] Kubernetes
-	- [ ] NTP
-	- [ ] NFS
+	- [x] Kubernetes
+	- [x] NTP
+	- [x] NFS
 	- [ ] Apache Jserv
 - [ ] Create a Set of Common Endpoints to Detect Web Services
 - [x] Update LDAPSearch with extra commands to make it work with all versions
