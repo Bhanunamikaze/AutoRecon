@@ -751,7 +751,7 @@ reconRecommend() {
                 printf "${NC}\n"
                 printf "${YELLOW} Running SMB Test Cases:\n"
                 printf "${NC}\n"
-                echo "smbscan.sh \"${HOST}\" | tee \"recon/SMB_testcases_${HOST}.txt\""
+                echo "SMBPentest.sh \"${HOST}\" | tee \"recon/SMB_testcases_${HOST}.txt\""
                 echo
         fi
         
