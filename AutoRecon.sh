@@ -706,6 +706,7 @@ reconRecommend() {
                 printf "${NC}\n"
                 echo "snmp-check \"${HOST}\" -c public | tee \"recon/snmpcheck_${HOST}.txt\""
                 echo "snmpwalk -Os -c public -v1 \"${HOST}\" | tee \"recon/snmpwalk_${HOST}.txt\""
+                echo "onesixtyone -c \"/usr/share/wordlists/SecLists/Discovery/SNMP/common-snmp-community-strings.txt\" \"${HOST}\" | tee \"recon/snmpwalk_${HOST}.txt\""
                 echo
         fi
 
@@ -782,6 +783,66 @@ reconRecommend() {
                         printf "${NC}\n"         
                         echo "rpcdump.py \"${HOST}\" -p ${port} | tee -a \"recon/rpcdump_${HOST}_${port}.txt\""
                         echo "rpcmap.py 'ncacn_ip_tcp:${HOST}'  | tee -a \"recon/rpcmap_Recon_${HOST}_${port}.txt\"" 
+                        echo 
+                fi
+         done
+
+        # RMI Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "RMI"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW} RMI Recon:\n"
+                        printf "${NC}\n"         
+                        echo "java -jar /usr/local/bin/BaRMIe_v1.01.jar -enum \"${HOST}\" ${port} | tee \"recon/BaRMIe_${HOST}_${port}.txt\""
+                        echo "java -jar /usr/local/bin/rmg.jar enum \"${HOST}\" ${port} | tee \"recon/rmg_${HOST}_${port}.txt\""
+                        echo "java -jar /usr/local/bin/beanshooter.jar info \"${HOST}\" ${port} | tee \"recon/beanshooter_${HOST}_${port}.txt\""
+                        echo "java -jar /usr/local/bin/beanshooter.jar enum \"${HOST}\" ${port} | tee -a \"recon/beanshooter_${HOST}_${port}.txt\""
+                        echo 
+                fi
+         done
+
+        # Kubernetes Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "2379/tcp\|2380/tcp"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW} RMI Recon:\n"
+                        printf "${NC}\n"         
+                        echo "kube-hunter-linux-x86_64-refs.tags.v0.6.8 --cidr \"${HOST}\" | tee \"recon/KubeHunter_${HOST}.txt\""
+                        echo "etcdctl --endpoints=http://${HOST}:${port} get / –prefix –keys-only | tee \"recon/etcdctl_${HOST}_${port}.txt\""
+                        echo 
+                fi
+         done
+
+
+        # NTP Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "123/tcp\|123/udp"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW} RMI Recon:\n"
+                        printf "${NC}\n"
+                        echo "nmap -sV -Pn --script \"ntp* and (discovery or vuln) and not (dos or brute)\" -p \"${port}\" \"${HOST}\" -oN \"recon/NTP_nmap_${HOST}_${port}.txt\""         
+                        echo "ntpq -c readlist \"${HOST}\"  | tee \"recon/ntpq_${HOST}.txt\""
+                        echo "ntpq -c readvar \"${HOST}\"  | tee -a \"recon/ntpq_${HOST}.txt\""
+                        echo "ntpq -c peers \"${HOST}\"  | tee -a \"recon/ntpq_${HOST}.txt\""
+                        echo "ntpq -c associations  \"${HOST}\"  | tee -a \"recon/ntpq_${HOST}.txt\""
+                        echo "ntpq -c monlist \"${HOST}\"  | tee -a \"recon/ntpq_${HOST}.txt\""
+                        echo "ntpq -c listpeers  \"${HOST}\"  | tee -a \"recon/ntpq_${HOST}.txt\""
+                        echo "ntpq -c sysinfo  \"${HOST}\"  | tee -a \"recon/ntpq_${HOST}.txt\""
+                        echo 
+                fi
+         done
+        
+        # NFS Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "2049/tcp"; then
+                        printf "${NC}\n"
+                        printf "${YELLOW} RMI Recon:\n"
+                        printf "${NC}\n"
+                        echo "nmap --script=nfs-ls.nse,nfs-showmount.nse,nfs-statfs.nse -Pn -p2049 \"${HOST}\" -oN \"recon/NFS_nmap_${HOST}_${port}.txt\""         
+                        echo "showmount -e \"${HOST}\"  | tee \"recon/showmount_${HOST}.txt\""
                         echo 
                 fi
          done
