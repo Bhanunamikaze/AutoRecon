@@ -51,8 +51,8 @@ Scan Types:
 ./AutoRecon.sh -H 10.10.10.10 -t network -s ./nmap
 ```
 
-```
 **Simple Way to Batch Scan All the IPs**
+```
 #Create a new file called /usr/local/bin/startscan.sh
 if [ $# -eq 0 ]
         then
