@@ -51,6 +51,21 @@ Scan Types:
 ./AutoRecon.sh -H 10.10.10.10 -t network -s ./nmap
 ```
 
+```
+**Simple Way to Batch Scan All the IPs**
+#Create a new file called /usr/local/bin/startscan.sh
+if [ $# -eq 0 ]
+        then
+                echo "Usage: $0 filename.txt"
+                echo "Example: $0 ips.txt"
+                exit
+        else
+                "$1"
+fi
+
+for ip in $(cat $1); do AutoRecon.sh -H $ip -t All & done
+```
+
 ## Auto Recon Services List 
 - HTTP/SSL 
 - CMS (Wordpress, Joomla, Drupal)
