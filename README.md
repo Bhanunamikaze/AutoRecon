@@ -67,9 +67,18 @@ for ip in $(cat $1); do AutoRecon.sh -H $ip -t All & done
 ```
 
 ## Auto Recon Services List 
+- FTP
+- SSH
 - HTTP/SSL 
 - CMS (Wordpress, Joomla, Drupal)
-- LDAP
+- Kerberos
+- LDAP / LDAPS / FreeIPA
+- MSSQL
+- MySQL
+- PostgreSQL
+- MongoDB
+- Cassandra
+- CouchDB
 - ORACLE DB
 - SNMP
 - SMTP
@@ -77,25 +86,25 @@ for ip in $(cat $1); do AutoRecon.sh -H $ip -t All & done
 - NFS
 - RPC/RPC MAPPER
 - SMB
+- Rsync
+- R-Services (rlogin/rwho/rusers)
 - JAVA RMI SERVICES
 - KUBERNETES
+- Docker API
 - ACTIVEMQ
+- WinRM
+- RDP
+- Redis
+- Memcached
+- Elasticsearch
+- Grafana
+- Jenkins
+- Jolokia
+- Apache Jserv (AJP)
+- IPMI
+- VMware ESXi
+- VNC
 
-## Recon Toools Used
- dirsearch gobuster nikto testssl.sh ffuf sslscan joomscan wpscan python python3-pip python3 ldap-utils git smbmap smbclient snmpwalk enum4linux onesixtyone snmp odat tnscmd10g default-jre nuclei droopescan cottontail ldeep Kube Hunter etcdctl BeanShooter BaRMIe Remote-method-guesser [SMBScan.sh](https://github.com/Bhanunamikaze/VulnFinder/blob/main/SMBPentest.sh)
-
-## TO-DO List
-- [x] Script to Verify and Download Tools
-- [ ] Pending Recon Tools
-	- [x] ActiveMQ
-	- [ ] Nuclei
-	- [ ] Jolokia
-	- [x] RMI
-	- [x] RPC Mapper
-	- [x] Kubernetes
-	- [x] NTP
-	- [x] NFS
-	- [ ] Apache Jserv
-- [ ] Create a Set of Common Endpoints to Detect Web Services
-- [x] Update LDAPSearch with extra commands to make it work with all versions
+## Recon Tools Used
+ dirsearch gobuster nikto testssl.sh ffuf sslscan joomscan wpscan python python3-pip python3 ldap-utils git smbmap smbclient snmpwalk snmpbulkwalk enum4linux onesixtyone snmp odat tnscmd10g default-jre nuclei droopescan cottontail ldeep Kube Hunter etcdctl BeanShooter BaRMIe Remote-method-guesser ssh-audit kerbrute evil-winrm redis-tools impacket rsync memcached psql rpcclient rpcinfo ipmitool curl jq mongosh cqlsh xfreerdp rdp-sec-check ajpShooter [VMwareAPIPentest](https://github.com/Bhanunamikaze/VMwareAPIPentest) [ESXiBrute](https://github.com/Bhanunamikaze/ESXiBrute) [SMBScan.sh](https://github.com/Bhanunamikaze/VulnFinder/blob/main/SMBPentest.sh)
 

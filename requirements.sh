@@ -1,12 +1,12 @@
 #!/bin/bash
 
-DEBtools_list=("dirsearch" "gobuster" "nikto" "testssl.sh" "ffuf" "sslscan" "joomscan" "wpscan" "python" "python3-pip" "python3" "ldap-utils" "git" "smbmap" "smbclient" "snmpwalk" "enum4linux" "onesixtyone" "snmp" "odat" "tnscmd10g" "default-jre") 
+DEBtools_list=("dirsearch" "gobuster" "nikto" "testssl.sh" "ffuf" "sslscan" "joomscan" "wpscan" "python" "python3-pip" "python3" "ldap-utils" "git" "smbmap" "smbclient" "snmpwalk" "enum4linux" "onesixtyone" "snmp" "odat" "tnscmd10g" "default-jre" "ssh-audit" "redis-tools" "evil-winrm" "libmemcached-tools" "postgresql-client" "ftp" "rsync" "ipmitool" "jq" "curl" "rpcbind" "freerdp2-x11" "rsh-client") 
 
-PIPtools_list=("droopescan" "ldeep" "cottontail-offensive" "impacket")
+PIPtools_list=("droopescan" "ldeep" "cottontail-offensive" "impacket" "ajpShooter")
 
 GOtools_list=("github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest")
 
-tools_list=("https://raw.githubusercontent.com/Bhanunamikaze/VulnFinder/main/SMBPentest.sh" "https://github.com/NickstaDB/BaRMIe/releases/download/v1.01/BaRMIe_v1.01.jar" "https://github.com/aquasecurity/kube-hunter/releases/download/v0.6.8/kube-hunter-linux-x86_64-refs.tags.v0.6.8")
+tools_list=("https://raw.githubusercontent.com/Bhanunamikaze/VulnFinder/main/SMBPentest.sh" "https://github.com/NickstaDB/BaRMIe/releases/download/v1.01/BaRMIe_v1.01.jar" "https://github.com/aquasecurity/kube-hunter/releases/download/v0.6.8/kube-hunter-linux-x86_64-refs.tags.v0.6.8" "https://github.com/ropnop/kerbrute/releases/latest/download/kerbrute_linux_amd64" "https://raw.githubusercontent.com/Bhanunamikaze/VMwareAPIPentest/main/ESXi_Soap_Pentest.py")
 
 green=`tput setaf 2`
 red=`tput setaf 1`
