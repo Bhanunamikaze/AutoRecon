@@ -570,6 +570,44 @@ recon() {
         IFS="${origIFS}"
 }
 
+# Probe a base URL for common metrics / monitoring / debug endpoints.
+# Called from runRecon via eval, e.g.: probeMetrics "http://10.10.10.5:8080"
+# Prints only real hits: 200 responses that differ from a random-path baseline
+# (filters apps that return 200 for every path), plus the first lines of each body.
+probeMetrics() {
+        pmBase="${1%/}"
+        pmBaseline="$(curl -sk -m 10 -o /dev/null -w '%{http_code} %{size_download}' "${pmBase}/autorecon_$$_nonexistent" 2>/dev/null)"
+        pmTmp="$(mktemp 2>/dev/null || echo "/tmp/probeMetrics_$$")"
+        pmHits=0
+        for pmPath in \
+                /metrics /metrics/ /prometheus /q/metrics /admin/metrics /stats/prometheus \
+                /api/v1/status/config /api/v1/status/flags /api/v1/status/buildinfo /api/v1/status/runtimeinfo \
+                /api/v1/targets /api/v1/rules /api/v1/alerts /api/v1/label/__name__/values \
+                '/federate?match%5B%5D=%7Bjob%3D~%22.%2B%22%7D' \
+                /api/v2/status /api/v2/alerts \
+                /actuator /actuator/prometheus /actuator/metrics /actuator/env /actuator/configprops \
+                /actuator/heapdump /actuator/mappings /actuator/health \
+                /debug/pprof/ /debug/vars /debug/metrics \
+                /server-status /nginx_status /stats /status/format/json \
+                /jolokia/list /v1/agent/metrics /_cluster/health /_nodes/stats; do
+                pmResult="$(curl -sk -m 10 -o "${pmTmp}" -w '%{http_code} %{size_download}' "${pmBase}${pmPath}" 2>/dev/null)"
+                pmCode="${pmResult%% *}"
+                pmSize="${pmResult##* }"
+                [ "${pmCode}" = "200" ] || continue
+                [ "${pmSize}" = "0" ] && continue
+                [ "${pmResult}" = "${pmBaseline}" ] && continue
+                pmHits=$((pmHits + 1))
+                pmNote=""
+                grep -q "^# TYPE \|^# HELP " "${pmTmp}" 2>/dev/null && pmNote=" (Prometheus metrics)"
+                printf "[+] %s %sB %s%s%s\n" "${pmCode}" "${pmSize}" "${pmBase}" "${pmPath}" "${pmNote}"
+                head -n 25 "${pmTmp}" | cut -c 1-300 | sed 's/^/    /'
+                echo
+        done
+        rm -f "${pmTmp}"
+        [ "${pmHits}" -eq 0 ] && echo "[-] No metrics/monitoring endpoints found on ${pmBase} (baseline: ${pmBaseline})"
+        return 0
+}
+
 # Recommend recon tools/commands to be run on found ports
 reconRecommend() {
         printf "${GREEN}---------------------Recon Recommendations---------------------\n"
@@ -643,6 +681,7 @@ reconRecommend() {
                                         extensions="$(echo 'index' >./index && gobuster dir -w ./index -t 30 -qnkx '.asp,.aspx,.html,.jsp,.php' -s '200,302' -u "${urlType}${HOST}:${port}" 2>/dev/null | awk -vORS=, -F 'index' '{print $2}' | sed 's/.$//' && rm ./index)"
                                         echo "gobuster dir -w /usr/share/wordlists/dirb/common.txt -t 30 -ekx '${extensions}' -b 401,403,404,429,500,501 --exclude-length 0 -u \"${urlType}${HOST}:${port}\" -o \"recon/gobuster_${HOST}_${port}.txt\""
                                 fi
+                                echo "probeMetrics \"${urlType}${HOST}:${port}\" | tee \"recon/metrics_${HOST}_${port}.txt\""
                                 echo
                         fi
                         
@@ -1308,14 +1347,16 @@ reconRecommend() {
         fi
 
         # Prometheus / Exporters Recon
+        # HTTP ports are already probed with probeMetrics in the web section; this catches
+        # well-known Prometheus/exporter ports that nmap didn't fingerprint as http.
+        # (9100 is left out unless nmap says http, since it is also the JetDirect printer port.)
         for line in ${file}; do
-                if echo "${line}" | grep -q "\b9090/tcp\|prometheus"; then
+                if echo "${line}" | grep -q "\b9090/tcp\|\b9091/tcp\|\b9093/tcp\|\b9104/tcp\|\b9113/tcp\|\b9115/tcp\|\b9121/tcp\|\b9182/tcp\|\b9187/tcp\|prometheus" && ! echo "${line}" | grep -i -q "http"; then
                         port="$(echo "${line}" | cut -d "/" -f 1)"
                         printf "${NC}\n"
-                        printf "${YELLOW}Prometheus Recon:\n"
+                        printf "${YELLOW}Prometheus / Exporters Recon:\n"
                         printf "${NC}\n"
-                        echo "curl -s -m 10 \"http://${HOST}:${port}/api/v1/status/config\" | tee \"recon/prometheus_config_${HOST}_${port}.txt\""
-                        echo "curl -s -m 10 \"http://${HOST}:${port}/api/v1/targets\" | tee \"recon/prometheus_targets_${HOST}_${port}.txt\""
+                        echo "probeMetrics \"http://${HOST}:${port}\" | tee \"recon/metrics_${HOST}_${port}.txt\""
                         echo
                 fi
         done
