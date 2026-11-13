@@ -581,19 +581,23 @@ reconRecommend() {
         # Set $ports and $file variables
         if [ -f "nmap/Full_Extra_${HOST}.nmap" ]; then
                 ports="${allPorts}"
-                file="$(cat "nmap/Script_${HOST}.nmap" "nmap/Full_Extra_${HOST}.nmap" | grep "open" | grep -v "#" | sort | uniq)"
+                file="$(cat "nmap/Script_${HOST}.nmap" "nmap/Full_Extra_${HOST}.nmap" | grep "open" | grep -v "^#" | sort | uniq)"
         elif [ -f "nmap/Script_${HOST}.nmap" ]; then
                 ports="${commonPorts}"
-                file="$(grep "open" "nmap/Script_${HOST}.nmap" | grep -v "#")"
+                file="$(grep "open" "nmap/Script_${HOST}.nmap" | grep -v "^#")"
 
         fi
 
         # SMTP recon
-        if echo "${file}" | grep -q "25/tcp"; then
+        if echo "${file}" | grep -q "\b25/tcp\|\b465/tcp\|\b587/tcp"; then
+                smtpPorts="$(echo "${file}" | grep "\b25/tcp\|\b465/tcp\|\b587/tcp" | cut -d "/" -f 1 | tr "\n" "," | sed 's/,$//')"
                 printf "${NC}\n"
                 printf "${YELLOW}SMTP Recon:\n"
                 printf "${NC}\n"
-                echo "smtp-user-enum -U /usr/share/wordlists/metasploit/unix_users.txt -t \"${HOST}\" | tee \"recon/smtp_user_enum_${HOST}.txt\""
+                echo "nmap -sV -Pn --script smtp-commands,smtp-ntlm-info,smtp-open-relay -p ${smtpPorts} \"${HOST}\" -oN \"recon/SMTP_nmap_${HOST}.txt\""
+                if echo "${file}" | grep -q "\b25/tcp"; then
+                        echo "smtp-user-enum -U /usr/share/wordlists/metasploit/unix_users.txt -t \"${HOST}\" | tee \"recon/smtp_user_enum_${HOST}.txt\""
+                fi
                 echo
         fi
 
@@ -628,14 +632,16 @@ reconRecommend() {
                                         urlType='http://'
                                         echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
                                 fi
+                                # dirsearch runs first so its results land in recon/ before ffuf/gobuster
+                                if type dirsearch >/dev/null 2>&1; then
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -x 401,403,404,429,500,501 --exclude-sizes=0B -o \"recon/dirsearch_${HOST}_${port}.txt\""
+                                fi
                                 if type ffuf >/dev/null 2>&1; then
                                         extensions="$(echo 'index' >./index && ffuf -s -w ./index:FUZZ -mc '200,302' -e '.asp,.aspx,.html,.jsp,.php' -u "${urlType}${HOST}:${port}/FUZZ" 2>/dev/null | awk -vORS=, -F 'index' '{print $2}' | sed 's/.$//' && rm ./index)"
-                                        echo "ffuf -ic -w /usr/share/wordlists/dirb/common.txt -e '${extensions}' -u \"${urlType}${HOST}:${port}/FUZZ\" | tee \"recon/ffuf_${HOST}_${port}.txt\""
-                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+                                        echo "ffuf -ic -w /usr/share/wordlists/dirb/common.txt -e '${extensions}' -mc all -fc 401,403,404,429,500,501 -fs 0 -ac -u \"${urlType}${HOST}:${port}/FUZZ\" 2>/dev/null | tee \"recon/ffuf_${HOST}_${port}.txt\""
                                 else
                                         extensions="$(echo 'index' >./index && gobuster dir -w ./index -t 30 -qnkx '.asp,.aspx,.html,.jsp,.php' -s '200,302' -u "${urlType}${HOST}:${port}" 2>/dev/null | awk -vORS=, -F 'index' '{print $2}' | sed 's/.$//' && rm ./index)"
-                                        echo "gobuster dir -w /usr/share/wordlists/dirb/common.txt -t 30 -ekx '${extensions}' -u \"${urlType}${HOST}:${port}\" -o \"recon/gobuster_${HOST}_${port}.txt\""
-                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+                                        echo "gobuster dir -w /usr/share/wordlists/dirb/common.txt -t 30 -ekx '${extensions}' -b 401,403,404,429,500,501 --exclude-length 0 -u \"${urlType}${HOST}:${port}\" -o \"recon/gobuster_${HOST}_${port}.txt\""
                                 fi
                                 echo
                         fi
@@ -664,11 +670,11 @@ reconRecommend() {
                                         echo "sslscan \"${HOST}\" | tee \"recon/sslscan_${HOST}_${port}.txt\""
                                         echo "nikto -host \"${urlType}${HOST}:${port}\" -ssl | tee \"recon/nikto_${HOST}_${port}.txt\""
                                         echo "testssl --quiet --warnings off \"${urlType}${HOST}:${port}\"  | tee \"recon/testssl_${HOST}_${port}.txt\""
-                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -x 401,403,404,429,500,501 --exclude-sizes=0B -o \"recon/dirsearch_${HOST}_${port}.txt\""
                                 else
                                         urlType='http://'
                                         echo "nikto -host \"${urlType}${HOST}:${port}\" | tee \"recon/nikto_${HOST}_${port}.txt\""
-                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -o \"recon/dirseach_${HOST}_${port}\""
+                                        echo "dirsearch -u \"${urlType}${HOST}:${port}/\" -x 401,403,404,429,500,501 --exclude-sizes=0B -o \"recon/dirsearch_${HOST}_${port}.txt\""
 
                                 fi
                                 echo
@@ -851,16 +857,16 @@ reconRecommend() {
          done
         
         # NFS Recon
-        for line in ${file}; do
-                if echo "${line}" | grep -q "2049/tcp"; then
-                        printf "${NC}\n"
-                        printf "${YELLOW} NFS Recon:\n"
-                        printf "${NC}\n"
-                        echo "nmap --script=nfs-ls.nse,nfs-showmount.nse,nfs-statfs.nse -Pn -p2049 \"${HOST}\" -oN \"recon/NFS_nmap_${HOST}_${port}.txt\""         
-                        echo "showmount -e \"${HOST}\"  | tee \"recon/showmount_${HOST}.txt\""
-                        echo 
-                fi
-         done
+        # Triggers on 2049/tcp, any nfs/mountd service, or rpcbind (111) since NFS exports
+        # are often only advertised through the portmapper. Runs once per host.
+        if echo "${file}" | grep -q -i "2049/tcp\|111/tcp\|nfs\|mountd\|rpcbind"; then
+                printf "${NC}\n"
+                printf "${YELLOW} NFS Recon:\n"
+                printf "${NC}\n"
+                echo "nmap --script=nfs-ls.nse,nfs-showmount.nse,nfs-statfs.nse -Pn -p111,2049 \"${HOST}\" -oN \"recon/NFS_nmap_${HOST}.txt\""
+                echo "showmount -e \"${HOST}\" 2>&1 | tee \"recon/showmount_${HOST}.txt\""
+                echo
+        fi
 
         # Oracle DB recon
         if echo "${file}" | grep -q "1521/tcp"; then
@@ -880,7 +886,8 @@ reconRecommend() {
                 printf "${NC}\n"
                 printf "${YELLOW}FTP Recon:\n"
                 printf "${NC}\n"
-                echo "ftp -nv \"${HOST}\" 21 <<< \$'user anonymous\\npass anonymous@\\nls -la\\nquit' | tee \"recon/ftp_anon_${HOST}.txt\""
+                echo "nmap -sV -Pn --script ftp-anon,ftp-syst -p 21 \"${HOST}\" -oN \"recon/FTP_nmap_${HOST}.txt\""
+                echo "curl -s -m 15 \"ftp://anonymous:anonymous@${HOST}/\" | tee \"recon/ftp_anon_${HOST}.txt\""
                 echo
         fi
 
@@ -966,6 +973,7 @@ reconRecommend() {
                 printf "${YELLOW}Memcached Recon:\n"
                 printf "${NC}\n"
                 echo "memcstat --servers=\"${HOST}\" | tee \"recon/memcached_stats_${HOST}.txt\""
+                echo "memcdump --servers=\"${HOST}\" 2>&1 | tee \"recon/memcached_dump_${HOST}.txt\""
                 echo
         fi
 
@@ -1172,7 +1180,169 @@ reconRecommend() {
                         printf "${NC}\n"
                         printf "${YELLOW}VNC Recon:\n"
                         printf "${NC}\n"
-                        echo "vncviewer \"${HOST}::${port}\" 2>&1 | head -5 | tee \"recon/vnc_check_${HOST}_${port}.txt\""
+                        echo "nmap -sV -Pn --script vnc-info,vnc-title,realvnc-auth-bypass -p ${port} \"${HOST}\" -oN \"recon/VNC_nmap_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # Telnet Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b23/tcp\|telnet"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}Telnet Recon:\n"
+                        printf "${NC}\n"
+                        echo "nmap -sV -Pn --script telnet-ntlm-info,telnet-encryption -p ${port} \"${HOST}\" -oN \"recon/Telnet_nmap_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # Finger Recon
+        if echo "${file}" | grep -q "\b79/tcp"; then
+                printf "${NC}\n"
+                printf "${YELLOW}Finger Recon:\n"
+                printf "${NC}\n"
+                echo "nmap -sV -Pn --script finger -p 79 \"${HOST}\" -oN \"recon/Finger_nmap_${HOST}.txt\""
+                echo "finger-user-enum.pl -U /usr/share/seclists/Usernames/Names/names.txt -t \"${HOST}\" | tee \"recon/finger_user_enum_${HOST}.txt\""
+                echo
+        fi
+
+        # POP3 / IMAP Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b110/tcp\|\b995/tcp\|\b143/tcp\|\b993/tcp"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}Mail (POP3/IMAP) Recon:\n"
+                        printf "${NC}\n"
+                        case "${port}" in
+                        110 | 995) echo "nmap -sV -Pn --script pop3-capabilities,pop3-ntlm-info -p ${port} \"${HOST}\" -oN \"recon/POP3_nmap_${HOST}_${port}.txt\"" ;;
+                        143 | 993) echo "nmap -sV -Pn --script imap-capabilities,imap-ntlm-info -p ${port} \"${HOST}\" -oN \"recon/IMAP_nmap_${HOST}_${port}.txt\"" ;;
+                        esac
+                        echo
+                fi
+        done
+
+        # TFTP Recon (UDP)
+        if [ -f "nmap/UDP_Extra_${HOST}.nmap" ] && grep -q "69/udp.*open" "nmap/UDP_Extra_${HOST}.nmap"; then
+                printf "${NC}\n"
+                printf "${YELLOW}TFTP Recon:\n"
+                printf "${NC}\n"
+                echo "sudo nmap -sU -Pn --script tftp-enum -p 69 \"${HOST}\" -oN \"recon/TFTP_nmap_${HOST}.txt\""
+                echo
+        fi
+
+        # IKE / IPsec VPN Recon (UDP)
+        if [ -f "nmap/UDP_Extra_${HOST}.nmap" ] && grep -q "500/udp.*open" "nmap/UDP_Extra_${HOST}.nmap"; then
+                printf "${NC}\n"
+                printf "${YELLOW}IKE/IPsec Recon:\n"
+                printf "${NC}\n"
+                echo "sudo ike-scan -M \"${HOST}\" | tee \"recon/ike_scan_${HOST}.txt\""
+                echo "sudo ike-scan -M --aggressive --id=vpn \"${HOST}\" | tee \"recon/ike_scan_aggressive_${HOST}.txt\""
+                echo
+        fi
+
+        # SIP Recon
+        if echo "${file}" | grep -q "\b5060/tcp\|\b5061/tcp\|sip"; then
+                printf "${NC}\n"
+                printf "${YELLOW}SIP Recon:\n"
+                printf "${NC}\n"
+                echo "nmap -sV -Pn --script sip-methods -p 5060,5061 \"${HOST}\" -oN \"recon/SIP_nmap_${HOST}.txt\""
+                echo
+        fi
+
+        # MQTT Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b1883/tcp\|\b8883/tcp\|mqtt"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}MQTT Recon:\n"
+                        printf "${NC}\n"
+                        echo "nmap -sV -Pn --script mqtt-subscribe -p ${port} \"${HOST}\" -oN \"recon/MQTT_nmap_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # RabbitMQ Management Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b15672/tcp"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}RabbitMQ Management Recon:\n"
+                        printf "${NC}\n"
+                        echo "curl -s -m 10 -u guest:guest \"http://${HOST}:${port}/api/overview\" | tee \"recon/rabbitmq_overview_${HOST}_${port}.txt\""
+                        echo "curl -s -m 10 -u guest:guest \"http://${HOST}:${port}/api/users\" | tee \"recon/rabbitmq_users_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # Zookeeper Recon
+        if echo "${file}" | grep -q "\b2181/tcp\|zookeeper"; then
+                printf "${NC}\n"
+                printf "${YELLOW}Zookeeper Recon:\n"
+                printf "${NC}\n"
+                echo "nmap -sV -Pn -p 2181 \"${HOST}\" -oN \"recon/Zookeeper_nmap_${HOST}.txt\""
+                echo "echo envi | nc -w 5 \"${HOST}\" 2181 | tee \"recon/zookeeper_envi_${HOST}.txt\""
+                echo
+        fi
+
+        # Squid / HTTP Proxy Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b3128/tcp\|squid"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}HTTP Proxy Recon:\n"
+                        printf "${NC}\n"
+                        echo "nmap -sV -Pn --script http-open-proxy -p ${port} \"${HOST}\" -oN \"recon/Proxy_nmap_${HOST}_${port}.txt\""
+                        echo "curl -s -m 10 -I --proxy \"http://${HOST}:${port}\" \"http://127.0.0.1/\" | tee \"recon/proxy_localhost_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # X11 Recon
+        if echo "${file}" | grep -q "\b6000/tcp\|X11"; then
+                printf "${NC}\n"
+                printf "${YELLOW}X11 Recon:\n"
+                printf "${NC}\n"
+                echo "nmap -sV -Pn --script x11-access -p 6000 \"${HOST}\" -oN \"recon/X11_nmap_${HOST}.txt\""
+                echo
+        fi
+
+        # Prometheus / Exporters Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b9090/tcp\|prometheus"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}Prometheus Recon:\n"
+                        printf "${NC}\n"
+                        echo "curl -s -m 10 \"http://${HOST}:${port}/api/v1/status/config\" | tee \"recon/prometheus_config_${HOST}_${port}.txt\""
+                        echo "curl -s -m 10 \"http://${HOST}:${port}/api/v1/targets\" | tee \"recon/prometheus_targets_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # Consul Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b8500/tcp\|consul"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}Consul Recon:\n"
+                        printf "${NC}\n"
+                        echo "curl -s -m 10 \"http://${HOST}:${port}/v1/agent/self\" | tee \"recon/consul_agent_${HOST}_${port}.txt\""
+                        echo "curl -s -m 10 \"http://${HOST}:${port}/v1/catalog/services\" | tee \"recon/consul_services_${HOST}_${port}.txt\""
+                        echo "curl -s -m 10 \"http://${HOST}:${port}/v1/kv/?recurse\" | tee \"recon/consul_kv_${HOST}_${port}.txt\""
+                        echo
+                fi
+        done
+
+        # InfluxDB Recon
+        for line in ${file}; do
+                if echo "${line}" | grep -q "\b8086/tcp\|influxdb"; then
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        printf "${NC}\n"
+                        printf "${YELLOW}InfluxDB Recon:\n"
+                        printf "${NC}\n"
+                        echo "curl -s -m 10 -i \"http://${HOST}:${port}/ping\" | tee \"recon/influxdb_ping_${HOST}_${port}.txt\""
+                        echo "curl -s -m 10 -G \"http://${HOST}:${port}/query\" --data-urlencode 'q=SHOW DATABASES' | tee \"recon/influxdb_dbs_${HOST}_${port}.txt\""
                         echo
                 fi
         done

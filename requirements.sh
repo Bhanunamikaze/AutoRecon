@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DEBtools_list=("dirsearch" "gobuster" "nikto" "testssl.sh" "ffuf" "sslscan" "joomscan" "wpscan" "python" "python3-pip" "python3" "ldap-utils" "git" "smbmap" "smbclient" "snmpwalk" "enum4linux" "onesixtyone" "snmp" "odat" "tnscmd10g" "default-jre" "ssh-audit" "redis-tools" "evil-winrm" "libmemcached-tools" "postgresql-client" "ftp" "rsync" "ipmitool" "jq" "curl" "rpcbind" "freerdp2-x11" "rsh-client") 
+DEBtools_list=("dirsearch" "gobuster" "nikto" "testssl.sh" "ffuf" "sslscan" "joomscan" "wpscan" "python" "python3-pip" "python3" "ldap-utils" "git" "smbmap" "smbclient" "snmpwalk" "enum4linux" "onesixtyone" "snmp" "odat" "tnscmd10g" "default-jre" "ssh-audit" "redis-tools" "evil-winrm" "libmemcached-tools" "nfs-common" "postgresql-client" "ftp" "rsync" "ipmitool" "jq" "curl" "rpcbind" "freerdp2-x11" "rsh-client") 
 
 PIPtools_list=("droopescan" "ldeep" "cottontail-offensive" "impacket" "ajpShooter")
 
