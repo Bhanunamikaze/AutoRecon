@@ -30,7 +30,7 @@ Once initial ports are found '*in 5-10 seconds*', we can start manually looking 
 ```
 ./AutoRecon.sh -h
 Usage: AutoRecon.sh -H/--host <TARGET-IP> -t/--type <TYPE>
-Optional: [-r/--remote <REMOTE MODE>] [-d/--dns <DNS SERVER>] [-o/--output <OUTPUT DIRECTORY>] [-s/--static-nmap <STATIC NMAP PATH>]
+Optional: [-r/--remote <REMOTE MODE>] [-d/--dns <DNS SERVER>] [-o/--output <OUTPUT DIRECTORY>] [-s/--static-nmap <STATIC NMAP PATH>] [-e/--env-file <.ENV FILE OR DIR>]
 
 Scan Types:
 	Network : Shows all live hosts in the host's network (~15 seconds)
@@ -63,8 +63,33 @@ if [ $# -eq 0 ]
                 "$1"
 fi
 
-for ip in $(cat $1); do AutoRecon.sh -H $ip -t All & done
+# Absolute path to the .env file (or its directory) holding NVD_API_KEY - optional 2nd argument overrides it
+ENV_FILE="${2:-/opt/autorecon/.env}"
+
+for ip in $(cat $1); do AutoRecon.sh -H $ip -t All -e "$ENV_FILE" & done
 ```
+
+## CVE Lookup
+
+The Recon step runs `cveLookup` on every port where nmap identified a product and version. It takes nmap's CPE (from the XML output, `nmap/*.xml`) and queries the [NVD CVE API](https://nvd.nist.gov/developers/vulnerabilities) with `virtualMatchString`, so version ranges such as "2.4.0 through 2.4.55" are matched. This finds far more than `vulners.nse`. If nmap gave no CPE, it guesses one from the NVD CPE dictionary and labels it as a guess. CVEs on CISA's Known Exploited Vulnerabilities list are flagged `KEV` and listed first, and `searchsploit` results are appended when it is installed. Output goes to `recon/cve_<host>_<port>_<proto>.txt`.
+
+- Requires `curl` and `jq`.
+- Without an API key NVD allows 5 requests per 30 seconds, so each lookup waits 6 seconds. A free key ([request one here](https://nvd.nist.gov/developers/request-an-api-key)) raises the limit to 50 requests:
+  ```
+  cp .env.sample .env      # then set NVD_API_KEY=<your key> in .env
+  ```
+  To keep the key in one fixed place, give an absolute path to the file or to the directory that contains it:
+  ```
+  ./AutoRecon.sh -H 10.10.10.10 -t Recon -e /opt/secrets/autorecon/.env      # per run
+  export AUTORECON_ENV_FILE=/opt/secrets/autorecon                           # permanent (add to ~/.bashrc)
+  ```
+  Lookup order (the first file that sets a variable wins, and variables already exported in your shell beat all files):
+  1. `./.env` in the current working directory
+  2. `-e/--env-file <path>`, or `$AUTORECON_ENV_FILE` if no flag is given
+  3. `.env` in the `AutoRecon.sh` directory
+
+  The file is parsed, not executed, and `.gitignore` keeps `.env` out of git. If NVD rejects the key, the lookup says so and continues without it.
+- Ubuntu, Debian and RHEL backport fixes without changing the upstream version, so the output warns that some of the listed CVEs may already be patched.
 
 ## Auto Recon Services List 
 - FTP

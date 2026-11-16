@@ -7,6 +7,33 @@ GREEN='\033[0;32m'
 NC='\033[0m'
 origIFS="${IFS}"
 
+# Load KEY=VALUE pairs from a dotenv file (dotenv semantics: '#' comments, optional 'export ',
+# optional surrounding quotes; variables already set in the environment win).
+# The file is parsed, not sourced, so nothing in it is executed.
+# $1 is the path to the .env file
+loadEnv() {
+        [ -f "$1" ] || return 0
+        while IFS= read -r envLine || [ -n "${envLine}" ]; do
+                envLine="$(printf '%s' "${envLine}" | tr -d '\r')"
+                envLine="$(printf '%s' "${envLine}" | sed 's/^[[:space:]]*//')"
+                case "${envLine}" in '' | '#'*) continue ;; esac
+                case "${envLine}" in *=*) ;; *) continue ;; esac
+                envLine="${envLine#export }"
+                envKey="$(printf '%s' "${envLine%%=*}" | tr -d ' \t')"
+                envVal="$(printf '%s' "${envLine#*=}" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+                case "${envKey}" in '' | [0-9]* | *[!A-Za-z0-9_]*) continue ;; esac
+                case "${envVal}" in
+                \"*\") envVal="${envVal#\"}" && envVal="${envVal%\"}" ;;
+                \'*\') envVal="${envVal#\'}" && envVal="${envVal%\'}" ;;
+                *) envVal="${envVal%%[[:space:]]#*}" ;;
+                esac
+                # Key is validated as a plain identifier above, so this eval only reads ${KEY+x}
+                eval "envIsSet=\${${envKey}+x}"
+                [ -n "${envIsSet}" ] && continue
+                export "${envKey}=${envVal}"
+        done <"$1"
+}
+
 # Start timer
 elapsedStart="$(date '+%H:%M:%S' | awk -F: '{print $1 * 3600 + $2 * 60 + $3}')"
 REMOTE=false
@@ -41,6 +68,11 @@ while [ $# -gt 0 ]; do
                 shift
                 shift
                 ;;
+        -e | --env-file)
+                ENVFILE="$2"
+                shift
+                shift
+                ;;
         -r | --remote)
                 REMOTE=true
                 shift
@@ -52,6 +84,21 @@ while [ $# -gt 0 ]; do
         esac
 done
 set -- ${POSITIONAL}
+
+# Load .env files. Earlier files win (loadEnv never overrides a variable that is already set),
+# and anything already exported in the shell beats all of them. Lookup order:
+#   1. ./.env                                  (current working directory)
+#   2. -e/--env-file <path>, else $AUTORECON_ENV_FILE  (absolute path to a .env file or to its directory)
+#   3. <AutoRecon.sh directory>/.env
+ENVFILE="${ENVFILE:-${AUTORECON_ENV_FILE}}"
+case "${ENVFILE}" in "~/"*) ENVFILE="${HOME}/${ENVFILE#\~/}" ;; esac
+[ -d "${ENVFILE}" ] && ENVFILE="${ENVFILE%/}/.env"
+if [ -n "${ENVFILE}" ] && [ ! -f "${ENVFILE}" ]; then
+        printf "${RED}\n.env file not found: ${ENVFILE}${NC}\n"
+fi
+loadEnv "./.env"
+[ -n "${ENVFILE}" ] && loadEnv "${ENVFILE}"
+loadEnv "$(cd "$(dirname "$0")" 2>/dev/null && pwd -P)/.env"
 
 # Legacy flags support, if run without -H/-t
 if [ -z "${HOST}" ]; then
@@ -105,7 +152,7 @@ fi
 usage() {
         echo
         printf "${RED}Usage: $(basename $0) -H/--host ${NC}<TARGET-IP>${RED} -t/--type ${NC}<TYPE>${RED}\n"
-        printf "${YELLOW}Optional: [-r/--remote ${NC}<REMOTE MODE>${YELLOW}] [-d/--dns ${NC}<DNS SERVER>${YELLOW}] [-o/--output ${NC}<OUTPUT DIRECTORY>${YELLOW}] [-s/--static-nmap ${NC}<STATIC NMAP PATH>${YELLOW}]\n\n"
+        printf "${YELLOW}Optional: [-r/--remote ${NC}<REMOTE MODE>${YELLOW}] [-d/--dns ${NC}<DNS SERVER>${YELLOW}] [-o/--output ${NC}<OUTPUT DIRECTORY>${YELLOW}] [-s/--static-nmap ${NC}<STATIC NMAP PATH>${YELLOW}] [-e/--env-file ${NC}<.ENV FILE OR DIR>${YELLOW}]\n\n"
         printf "Scan Types:\n"
         printf "${YELLOW}\tNetwork : ${NC}Shows all live hosts in the host's network ${YELLOW}(~15 seconds)\n"
         printf "${YELLOW}\tPort    : ${NC}Shows all open ports ${YELLOW}(~15 seconds)\n"
@@ -345,7 +392,7 @@ scriptScan() {
                 if [ -z "${commonPorts}" ]; then
                         printf "${YELLOW}No ports in port scan.. Skipping!\n"
                 else
-                        nmapProgressBar "${nmapType} -sCV -p${commonPorts} --open -oN nmap/Script_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
+                        nmapProgressBar "${nmapType} -sCV -p${commonPorts} --open -oX nmap/Script_${HOST}.xml -oN nmap/Script_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
                 fi
 
                 # Modify detected OS if Nmap detects a different OS
@@ -383,7 +430,7 @@ fullScan() {
                         echo
                         printf "${YELLOW}Making a script scan on all ports\n"
                         printf "${NC}\n"
-                        nmapProgressBar "${nmapType} -sCV -p${allPorts} --open -oN nmap/Full_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
+                        nmapProgressBar "${nmapType} -sCV -p${allPorts} --open -oX nmap/Full_Extra_${HOST}.xml -oN nmap/Full_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
                         assignPorts "${HOST}"
                 # Nmap version and default script scan if any extra ports are found
                 else
@@ -399,7 +446,7 @@ fullScan() {
                                 echo
                                 printf "${YELLOW}Making a script scan on extra ports: $(echo "${extraPorts}" | sed 's/,/, /g')\n"
                                 printf "${NC}\n"
-                                nmapProgressBar "${nmapType} -sCV -p${extraPorts} --open -oN nmap/Full_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
+                                nmapProgressBar "${nmapType} -sCV -p${extraPorts} --open -oX nmap/Full_Extra_${HOST}.xml -oN nmap/Full_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
                                 assignPorts "${HOST}"
                         fi
                 fi
@@ -436,10 +483,10 @@ UDPScan() {
                         printf "${NC}\n"
                         if [ -f /usr/share/nmap/scripts/vulners.nse ]; then
                                 sudo -v
-                                nmapProgressBar "sudo ${nmapType} -sCVU --script vulners --script-args mincvss=7.0 -p${udpPorts} --open -oN nmap/UDP_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
+                                nmapProgressBar "sudo ${nmapType} -sCVU --script vulners --script-args mincvss=7.0 -p${udpPorts} --open -oX nmap/UDP_Extra_${HOST}.xml -oN nmap/UDP_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
                         else
                                 sudo -v
-                                nmapProgressBar "sudo ${nmapType} -sCVU -p${udpPorts} --open -oN nmap/UDP_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
+                                nmapProgressBar "sudo ${nmapType} -sCVU -p${udpPorts} --open -oX nmap/UDP_Extra_${HOST}.xml -oN nmap/UDP_Extra_${HOST}.nmap ${HOST} ${DNSSTRING}" 2
                         fi
                 else
                         echo
@@ -605,6 +652,182 @@ probeMetrics() {
         done
         rm -f "${pmTmp}"
         [ "${pmHits}" -eq 0 ] && echo "[-] No metrics/monitoring endpoints found on ${pmBase} (baseline: ${pmBaseline})"
+        return 0
+}
+
+# GET an NVD API URL into $2, honouring rate limits (5 req/30s without a key, 50 with NVD_API_KEY)
+# and retrying on throttling/server errors. Returns non-zero if no 200 response was received.
+nvdGet() {
+        ngTry=0
+        while [ "${ngTry}" -lt 4 ]; do
+                if [ -n "${NVD_API_KEY}" ]; then
+                        sleep 1
+                        ngCode="$(curl -s -m 60 -H "apiKey: ${NVD_API_KEY}" -D "$2.hdr" -o "$2" -w '%{http_code}' "$1" 2>/dev/null)"
+                        # NVD answers a bad key with 404 + "message: Invalid apiKey." - don't retry, drop to keyless mode
+                        if [ "${ngCode}" = "404" ] && grep -q -i '^message:.*apikey' "$2.hdr" 2>/dev/null; then
+                                echo "[-] NVD rejected NVD_API_KEY (invalid key) - continuing without it (slower). Check your .env" >&2
+                                NVD_API_KEY=""
+                                rm -f "$2.hdr"
+                                continue
+                        fi
+                        rm -f "$2.hdr"
+                else
+                        sleep 6
+                        ngCode="$(curl -s -m 60 -o "$2" -w '%{http_code}' "$1" 2>/dev/null)"
+                fi
+                [ "${ngCode}" = "200" ] && return 0
+                ngTry=$((ngTry + 1))
+                sleep $((ngTry * 10))
+        done
+        echo "[-] NVD API request failed (HTTP ${ngCode:-timeout}): $1" >&2
+        return 1
+}
+
+# Look up known CVEs for the service nmap fingerprinted on a port, using the NVD CVE API
+# (CPE-based matching, so version ranges are honoured) instead of the vulners.nse script.
+# Called from runRecon via eval, e.g.: cveLookup "10.10.10.5" "22" "tcp"
+# Re-reads the nmap output itself rather than taking product/version as arguments, because
+# banner-derived strings must not end up in a line that runRecon evals.
+# Set NVD_API_KEY in .env (see .env.sample) or the environment for ~10x faster lookups.
+cveLookup() {
+        clHost="$1"
+        clPort="$2"
+        clProto="${3:-tcp}"
+        clNvd="https://services.nvd.nist.gov/rest/json"
+        # Globals (no 'local' in POSIX sh): reset so nothing leaks between ports in one runRecon
+        clCpe=""
+        clMatch=""
+        clVp=""
+
+        if ! type curl >/dev/null 2>&1 || ! type jq >/dev/null 2>&1; then
+                echo "[-] cveLookup needs curl and jq"
+                return 0
+        fi
+
+        # Service line + CPE from nmap output (XML preferred: it carries nmap's CPE).
+        # File names are listed explicitly: runRecon evals this with IFS set to newline.
+        if [ "${clProto}" = "udp" ]; then
+                clAll="$(cat "nmap/UDP_Extra_${clHost}.nmap" 2>/dev/null)"
+                clAllXml="$(cat "nmap/UDP_Extra_${clHost}.xml" 2>/dev/null)"
+        else
+                clAll="$(cat "nmap/Full_Extra_${clHost}.nmap" "nmap/Script_${clHost}.nmap" 2>/dev/null)"
+                clAllXml="$(cat "nmap/Full_Extra_${clHost}.xml" "nmap/Script_${clHost}.xml" 2>/dev/null)"
+        fi
+        clLine="$(echo "${clAll}" | grep -E "^${clPort}/${clProto}[[:space:]]+open" | head -n 1)"
+        clXml="$(echo "${clAllXml}" | grep "protocol=\"${clProto}\" portid=\"${clPort}\"" | head -n 1)"
+        clCpe="$(echo "${clXml}" | grep -o '<cpe>cpe:/a:[^<]*</cpe>' | head -n 1 | sed 's/<\/*cpe>//g')"
+
+        # Product / version from the XML attributes, else from the normal-output VERSION column
+        if [ -n "${clXml}" ]; then
+                clProduct="$(echo "${clXml}" | sed -n 's/.*<service [^>]*product="\([^"]*\)".*/\1/p')"
+                clVersion="$(echo "${clXml}" | sed -n 's/.*<service [^>]*version="\([^" ]*\).*/\1/p')"
+        else
+                clProduct="$(echo "${clLine}" | awk '{for (i = 4; i <= NF; i++) { if ($i ~ /^v?[0-9]+[.0-9a-z_-]*$/ && $i ~ /[0-9]/) exit; printf "%s%s", (i > 4 ? " " : ""), $i }}')"
+                clVersion="$(echo "${clLine}" | awk '{for (i = 4; i <= NF; i++) if ($i ~ /^v?[0-9]+[.0-9a-z_-]*$/ && $i ~ /[0-9]/) { sub(/^v/, "", $i); print $i; exit }}')"
+        fi
+
+        echo "[*] ${clHost}:${clPort}/${clProto} -> ${clProduct:-unknown product} ${clVersion:-(no version)}"
+        if [ -n "${NVD_API_KEY}" ]; then
+                echo "[*] NVD API key: loaded"
+        else
+                echo "[*] NVD API key: not set (rate-limited to 5 req/30s - add NVD_API_KEY to .env, see .env.sample)"
+        fi
+
+        # Need either a versioned CPE from nmap, or a product name plus a dotted version
+        # (rejects things like rpcbind's "2-4", which is an RPC program version range)
+        if ! echo "${clCpe}" | grep -q '^cpe:/a:[^:]*:[^:]*:[^:]' && { [ -z "${clProduct}" ] || ! echo "${clVersion}" | grep -q '^[0-9][0-9]*\.[0-9]'; }; then
+                echo "[-] nmap did not identify a product + version for this service; skipping CVE lookup (version-less matches are mostly noise)"
+                return 0
+        fi
+
+        clTmp="$(mktemp 2>/dev/null || echo "/tmp/cveLookup_$$")"
+
+        # Build a CPE 2.3 match string: nmap's CPE if present, else ask NVD's CPE dictionary
+        if [ -n "${clCpe}" ]; then
+                clMatch="cpe:2.3:$(echo "${clCpe}" | sed 's/^cpe:\///')"
+                # nmap sometimes omits the version from the CPE even though it knows it
+                if ! echo "${clMatch}" | grep -q '^cpe:2\.3:a:[^:]*:[^:]*:[^:]'; then
+                        clMatch="${clMatch%:}:${clVersion}"
+                fi
+                echo "[*] CPE (from nmap): ${clMatch}"
+        elif [ -n "${clProduct}" ]; then
+                clKeyword="$(echo "${clProduct}" | sed 's/ \(httpd\|ftpd\|smtpd\|sshd\|server\|daemon\)$//I')"
+                clEnc="$(jq -rn --arg s "${clKeyword}" '$s|@uri')"
+                if nvdGet "${clNvd}/cpes/2.0?keywordSearch=${clEnc}&resultsPerPage=200" "${clTmp}"; then
+                        clVp="$(jq -r '.products[]?.cpe.cpeName | select(startswith("cpe:2.3:a:"))' "${clTmp}" | cut -d: -f4,5 | sort | uniq -c | sort -rn | awk 'NR == 1 {print $2}')"
+                fi
+                if [ -z "${clVp}" ]; then
+                        echo "[-] No CPE found in the NVD dictionary for '${clKeyword}'"
+                        echo "    Check manually: https://nvd.nist.gov/vuln/search  /  searchsploit ${clProduct} ${clVersion}"
+                        rm -f "${clTmp}"
+                        return 0
+                fi
+                clMatch="cpe:2.3:a:${clVp}:${clVersion}"
+                echo "[*] CPE (best guess from NVD dictionary - verify vendor/product): ${clMatch}"
+        fi
+
+        if [ -z "${clMatch}" ]; then
+                echo "[-] Could not build a CPE for this service; skipping CVE lookup"
+                rm -f "${clTmp}"
+                return 0
+        fi
+
+        # Query NVD for every CVE whose configuration matches this CPE (incl. version ranges), paging 2000 at a time
+        clEnc="$(jq -rn --arg s "${clMatch}" '$s|@uri')"
+        clRows="${clTmp}.rows"
+        : >"${clRows}"
+        clStart=0
+        clTotal=1
+        while [ "${clStart}" -lt "${clTotal}" ]; do
+                nvdGet "${clNvd}/cves/2.0?virtualMatchString=${clEnc}&resultsPerPage=2000&startIndex=${clStart}" "${clTmp}" || break
+                clTotal="$(jq -r '.totalResults // 0' "${clTmp}")"
+                # A real product/version never matches thousands of CVEs; this means the CPE was too broad
+                if [ "${clTotal}" -gt 3000 ]; then
+                        echo "[-] ${clTotal} CVEs matched ${clMatch} - CPE is too broad, skipping (check manually)"
+                        clTotal=0
+                        : >"${clRows}"
+                        break
+                fi
+                # score <TAB> severity <TAB> KEV <TAB> CVE <TAB> published <TAB> description
+                jq -r '.vulnerabilities[]?.cve
+                        | ((.metrics.cvssMetricV40 // .metrics.cvssMetricV31 // .metrics.cvssMetricV30 // .metrics.cvssMetricV2 // [])[0]) as $m
+                        | [ ($m.cvssData.baseScore // 0),
+                            ($m.cvssData.baseSeverity // $m.baseSeverity // "N/A"),
+                            (if .cisaExploitAdd then "KEV" else "-" end),
+                            .id,
+                            (.published // "" | .[0:10]),
+                            ((.descriptions[]? | select(.lang == "en") | .value) // "" | gsub("[\t\r\n]+"; " ") | .[0:160]) ]
+                        | @tsv' "${clTmp}" >>"${clRows}"
+                clStart=$((clStart + 2000))
+        done
+
+        clCount="$(wc -l <"${clRows}" | tr -d ' ')"
+        if [ "${clCount}" -eq 0 ]; then
+                echo "[-] No CVEs in NVD for ${clMatch}"
+        else
+                clKev="$(awk -F '\t' '$3 == "KEV"' "${clRows}" | wc -l | tr -d ' ')"
+                clSev="$(awk -F '\t' '{c[$2]++} END {printf "CRITICAL:%d HIGH:%d MEDIUM:%d LOW:%d", c["CRITICAL"], c["HIGH"], c["MEDIUM"], c["LOW"]}' "${clRows}")"
+                echo "[+] ${clCount} CVE(s) for ${clMatch}  (${clSev}  CISA-KEV:${clKev})"
+                echo
+                printf "%-5s %-9s %-4s %-17s %-10s %s\n" "CVSS" "SEVERITY" "KEV" "CVE" "PUBLISHED" "SUMMARY"
+                # Known-exploited first, then by score
+                sort -t "$(printf '\t')" -k3,3r -k1,1nr "${clRows}" | awk -F '\t' '{printf "%-5s %-9s %-4s %-17s %-10s %s\n", $1, $2, $3, $4, $5, $6}'
+                echo
+                echo "    Details: https://nvd.nist.gov/vuln/detail/<CVE-ID>"
+                if echo "${clLine}${clXml}" | grep -q -i 'ubuntu\|debian\|el[0-9]\|centos\|red hat\|rhel\|suse'; then
+                        echo "    [!] Distro package detected: vendors backport fixes without bumping the upstream version,"
+                        echo "        so some of these may already be patched. Confirm against the distro's security tracker."
+                fi
+        fi
+
+        # Public exploits from the local Exploit-DB copy, if available
+        if type searchsploit >/dev/null 2>&1 && [ -n "${clProduct}" ]; then
+                echo
+                echo "[*] searchsploit ${clProduct} ${clVersion}"
+                searchsploit --disable-colour "${clProduct} ${clVersion}" 2>/dev/null | grep -v '^Shellcodes: No Results'
+        fi
+
+        rm -f "${clTmp}" "${clRows}"
         return 0
 }
 
@@ -1387,6 +1610,25 @@ reconRecommend() {
                         echo
                 fi
         done
+
+        # CVE Lookup (NVD API) for every port where nmap identified a product/version
+        cveServices="$(echo "${file}" | grep -E '^[0-9]+/tcp[[:space:]]+open[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]' | sort -t / -k1,1n -u)"
+        if [ -f "nmap/UDP_Extra_${HOST}.nmap" ]; then
+                cveServices="${cveServices}
+$(grep -E '^[0-9]+/udp[[:space:]]+open[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]' "nmap/UDP_Extra_${HOST}.nmap" | sort -t / -k1,1n -u)"
+        fi
+        cveServices="$(echo "${cveServices}" | awk '{ v = ""; for (i = 4; i <= NF; i++) if ($i ~ /[0-9]/) { v = $i; break } } v != ""')"
+        if [ -n "${cveServices}" ]; then
+                printf "${NC}\n"
+                printf "${YELLOW}CVE Lookup (NVD):\n"
+                printf "${NC}\n"
+                for line in ${cveServices}; do
+                        port="$(echo "${line}" | cut -d "/" -f 1)"
+                        proto="$(echo "${line}" | cut -d "/" -f 2 | cut -d " " -f 1)"
+                        echo "cveLookup \"${HOST}\" \"${port}\" \"${proto}\" | tee \"recon/cve_${HOST}_${port}_${proto}.txt\""
+                done
+                echo
+        fi
 
         IFS="${origIFS}"
 
