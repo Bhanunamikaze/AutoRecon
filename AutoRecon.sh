@@ -425,7 +425,12 @@ fullScan() {
                 assignPorts "${HOST}"
 
                 # Nmap version and default script scan on found ports if Script scan was not run yet
-                if [ -z "${commonPorts}" ]; then
+                if [ -z "${allPorts}" ]; then
+                        echo
+                        echo
+                        printf "${YELLOW}No open ports in full scan.. Skipping script scan!\n"
+                        printf "${NC}\n"
+                elif [ -z "${commonPorts}" ]; then
                         echo
                         echo
                         printf "${YELLOW}Making a script scan on all ports\n"
@@ -472,7 +477,7 @@ UDPScan() {
                         echo
                 fi
 
-                nmapProgressBar "sudo ${nmapType} -sU --max-retries 1 --open --open -oN nmap/UDP_${HOST}.nmap ${HOST} ${DNSSTRING}" 3
+                nmapProgressBar "sudo ${nmapType} -sU --max-retries 1 --open -oN nmap/UDP_${HOST}.nmap ${HOST} ${DNSSTRING}" 3
                 assignPorts "${HOST}"
 
                 # Nmap version and default script scan on found UDP ports
@@ -516,6 +521,12 @@ vulnsScan() {
                 else
                         portType="all"
                         ports="${allPorts}"
+                fi
+
+                if [ -z "${ports}" ]; then
+                        printf "${YELLOW}No open TCP ports found.. Skipping Vulns scan!\n"
+                        printf "${NC}\n"
+                        return 0
                 fi
 
                 # Ensure the vulners script is available, then run it with nmap
